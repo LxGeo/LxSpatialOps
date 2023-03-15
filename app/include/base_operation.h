@@ -166,28 +166,43 @@ namespace LxGeo
 				}
 			}
 
+			void run_unique_block(int c_grid_id) {
+				ViewPair in_view_pair;
+				const Boost_Box_2& in_view_box = in_cpd[c_grid_id];
+				// Read raster inputs
+				for (const auto& c_input_raster_kv : input_raster_defmaps) {
+					auto c_raster_id = c_input_raster_kv.first;
+					GeoImage<cv::Mat> c_geoimage = GeoImage<cv::Mat>::from_file(c_input_raster_kv.second.first, in_view_box);
+					in_view_pair.raster_views[c_raster_id] = c_geoimage;
+				}
+
+				ViewPair out_view_pair = op(in_view_pair);
+				const Boost_Box_2& out_view_box = out_cpd[c_grid_id];
+				// Write raster outputs
+				for (const auto& c_out_dataset_kv : out_view_pair.raster_views) {
+					std::string c_dataset_id = c_out_dataset_kv.first;
+					GeoImage<cv::Mat> respective_geoimage = out_view_pair.raster_views[c_dataset_id].get_view_spatial(out_view_box);
+					output_datasets[c_dataset_id].write_geoimage(respective_geoimage);
+				}
+			}
+
 			void run_sequential() {
 				init_output_datasets();
 				for (int c_grid_id = 0; c_grid_id < out_cpd.length(); c_grid_id++) {
-
-					ViewPair in_view_pair;
-					const Boost_Box_2& in_view_box = in_cpd[c_grid_id];
-					// Read raster inputs
-					for (const auto& c_input_raster_kv : input_raster_defmaps) {
-						auto c_raster_id = c_input_raster_kv.first;
-						GeoImage<cv::Mat> c_geoimage = GeoImage<cv::Mat>::from_file(c_input_raster_kv.second.first, in_view_box);
-						in_view_pair.raster_views[c_raster_id] = c_geoimage;
-					}
-
-					ViewPair out_view_pair = op(in_view_pair);
-					const Boost_Box_2& out_view_box = out_cpd[c_grid_id];
-					// Write raster outputs
-					for (const auto& c_out_dataset_kv : out_view_pair.raster_views) {
-						std::string c_dataset_id = c_out_dataset_kv.first;
-						GeoImage<cv::Mat> respective_geoimage = out_view_pair.raster_views[c_dataset_id].get_view_spatial(out_view_box);
-						output_datasets[c_dataset_id].write_geoimage(respective_geoimage);
-					}
+					run_unique_block(c_grid_id);
 				}
+			}
+
+			void run_parallel() {
+				init_output_datasets();
+				std::vector<std::thread> threads; threads.reserve(out_cpd.length());
+				for (int c_grid_id = 0; c_grid_id < out_cpd.length(); c_grid_id++) {
+					threads.push_back(std::thread(&BaseOperation::run_unique_block, this, c_grid_id));
+				}
+				for (auto& th : threads) {
+					th.join();
+				}
+
 			}
 
 		public:
