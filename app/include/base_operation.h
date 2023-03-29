@@ -117,7 +117,7 @@ namespace LxGeo
 			* else if id corresponds to a vector id then the whole VProfile is copied including layer definition (layer definition is goining to be updated later at init_output_datasets)
 			*/
 			void add_vector_output_dataset(std::string dataset_path, std::set<std::string> respective_datasets_ids,
-				ExtentsCombinationStrategy ecs = ExtentsCombinationStrategy::ext_intersection, std::string dataset_id = "") {
+				ExtentsCombinationStrategy ecs = ExtentsCombinationStrategy::ext_intersection, WriteMode wm = WriteMode::create, std::string dataset_id = "") {
 				dataset_id = (dataset_id.empty()) ? dataset_path : dataset_id;
 
 				std::list<IO_DATA::VProfile> v_profiles;
@@ -155,7 +155,7 @@ namespace LxGeo
 				VProfile out_profile; out_profile.s_crs_wkt = *spatial_refs.begin();
 				LayerDef ld; ld.layer_extent = output_extents;
 				out_profile.layers_def[""] = ld;
-				output_vector_defmaps[dataset_id] = { dataset_path, out_profile };
+				output_vector_defmaps[dataset_id] = { dataset_path, out_profile, wm };
 			}
 			
 			void init_cpd(OperationDiveStrategy ods, double spatial_patch_size=256.0, double spatial_buffer = 0.0) {				
@@ -163,7 +163,7 @@ namespace LxGeo
 				for (auto& c_elem : output_raster_defmaps)
 					outputs_extents.push_back(c_elem.second.second.to_box_extents());
 				for (auto& c_elem : output_vector_defmaps)
-					for (auto& c_layer : c_elem.second.second.layers_def)
+					for (auto& c_layer : std::get<1>(c_elem.second).layers_def)
 						outputs_extents.push_back(c_layer.second.layer_extent);
 				
 				// Computing union area for all output datasets
@@ -219,7 +219,7 @@ namespace LxGeo
 					if (output_vector_defmaps.find(out_view_kv.first) == output_vector_defmaps.end()) {
 						throw std::exception("Operation generated an undefined vector view ID!");
 					}
-					auto& respective_profile = output_vector_defmaps[out_view_kv.first].second;
+					auto& respective_profile = std::get<1>(output_vector_defmaps[out_view_kv.first]);
 					const GeoVectorVariant& gvv = out_view_kv.second;
 					LayerDef c_layer_def;
 					if (const GeoVector<Boost_Polygon_2>* poly_geov = boost::get<GeoVector<Boost_Polygon_2>>(&gvv)) {
@@ -249,7 +249,7 @@ namespace LxGeo
 					else
 						throw std::exception("Cannot initialize output vector dataset! Boost variant variable is out the three supported geometry types.");
 					respective_profile.layers_def[""] = c_layer_def;
-					output_vector_datasets[out_view_kv.first] = WPVectorDataset(output_vector_defmaps[out_view_kv.first].first, respective_profile, WriteMode::overwrite);
+					output_vector_datasets[out_view_kv.first] = WPVectorDataset(std::get<0>(output_vector_defmaps[out_view_kv.first]), respective_profile, std::get<2>(output_vector_defmaps[out_view_kv.first]));
 				}
 			}
 
@@ -294,7 +294,7 @@ namespace LxGeo
 				for (const auto& c_out_dataset_kv : out_view_pair.vector_views) {
 					std::string c_dataset_id = c_out_dataset_kv.first;
 
-					OGRwkbGeometryType c_dataset_type = output_vector_defmaps[c_dataset_id].second.layers_def.begin()->second.wkb_type;
+					OGRwkbGeometryType c_dataset_type = std::get<1>(output_vector_defmaps[c_dataset_id]).layers_def.begin()->second.wkb_type;
 					if (c_dataset_type == wkbPoint) {
 						const GeoVector<Boost_Point_2>& respective_geovector = boost::get<GeoVector<Boost_Point_2>>(out_view_pair.vector_views[c_dataset_id]);
 						output_vector_datasets[c_dataset_id].write_geovector(respective_geovector.get_view_spatial(out_view_box));
@@ -337,7 +337,7 @@ namespace LxGeo
 			std::map<std::string, std::pair<std::string, IO_DATA::RProfile>> output_raster_defmaps;
 
 			std::map<std::string, std::pair<std::string, IO_DATA::VProfile>> input_vector_defmaps;
-			std::map<std::string, std::pair<std::string, IO_DATA::VProfile>> output_vector_defmaps;
+			std::map<std::string, std::tuple<std::string, IO_DATA::VProfile, WriteMode>> output_vector_defmaps;
 
 			std::map<std::string, WPRasterDataset> output_raster_datasets;
 			std::map<std::string, WPVectorDataset> output_vector_datasets;
