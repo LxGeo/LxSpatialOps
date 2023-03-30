@@ -54,9 +54,13 @@ namespace LxGeo
 		};
 
 		typedef boost::variant< GeoVector<Boost_Polygon_2>, GeoVector<Boost_LineString_2>, GeoVector<Boost_Point_2> > GeoVectorVariant;
+		struct validGeomIdx {
+			int idx = 0;
+		};
 		struct ViewPair {
 			std::map<std::string, GeoImage<cv::Mat>> raster_views;
 			std::map<std::string, GeoVectorVariant> vector_views;
+			std::map<std::string, validGeomIdx> valid_geometries_indices;
 		};
 
 		/**
@@ -119,6 +123,10 @@ namespace LxGeo
 			void add_vector_output_dataset(std::string dataset_path, std::set<std::string> respective_datasets_ids,
 				ExtentsCombinationStrategy ecs = ExtentsCombinationStrategy::ext_intersection, WriteMode wm = WriteMode::create, std::string dataset_id = "") {
 				dataset_id = (dataset_id.empty()) ? dataset_path : dataset_id;
+
+				bool c_error_bool = (wm != WriteMode::create || !boost::filesystem::exists(dataset_path));
+				if (!c_error_bool)
+					throw std::runtime_error("File already exists. Cannot add output vector having id {} with write mode as create!");
 
 				std::list<IO_DATA::VProfile> v_profiles;
 				std::list<IO_DATA::RProfile> r_profiles;
@@ -215,41 +223,45 @@ namespace LxGeo
 					output_raster_datasets[out_view_kv.first] = WPRasterDataset(output_raster_defmaps[out_view_kv.first].first, respective_profile, WriteMode::overwrite);
 				}
 
-				for (const auto& out_view_kv : out_view_pair.vector_views) {
-					if (output_vector_defmaps.find(out_view_kv.first) == output_vector_defmaps.end()) {
+				assert(out_view_pair.vector_views.size() == out_view_pair.valid_geometries_indices.size() && "ViewPair structure invalid");
+				auto out_view_kv = out_view_pair.vector_views.begin();
+				auto valid_geometries_kv = out_view_pair.valid_geometries_indices.begin();
+
+				for (; out_view_kv != out_view_pair.vector_views.end(); out_view_kv++, valid_geometries_kv++) {
+					if (output_vector_defmaps.find(out_view_kv->first) == output_vector_defmaps.end()) {
 						throw std::exception("Operation generated an undefined vector view ID!");
 					}
-					auto& respective_profile = std::get<1>(output_vector_defmaps[out_view_kv.first]);
-					const GeoVectorVariant& gvv = out_view_kv.second;
+					auto& respective_profile = std::get<1>(output_vector_defmaps[out_view_kv->first]);
+					const GeoVectorVariant& gvv = out_view_kv->second;
 					LayerDef c_layer_def;
 					if (const GeoVector<Boost_Polygon_2>* poly_geov = boost::get<GeoVector<Boost_Polygon_2>>(&gvv)) {
 						if (poly_geov->length() == 0) {
-							std::cout << fmt::format("Empty polygon geometry contatiner at GeoVector corresponding to output vector with ID: {}",out_view_kv.first)<<std::endl;
+							std::cout << fmt::format("Empty polygon geometry contatiner at GeoVector corresponding to output vector with ID: {}",out_view_kv->first)<<std::endl;
 							std::cout << "Matbe try to use a different grid index to initialize output datasets" << std::endl;
 							continue;
 						}
-						c_layer_def = LayerDef::from_geometry_wa(poly_geov->geometries_container[0]);
+						c_layer_def = LayerDef::from_geometry_wa(poly_geov->geometries_container[valid_geometries_kv->second.idx]);
 					}
 					else if (const GeoVector<Boost_LineString_2>* line_geov = boost::get<GeoVector<Boost_LineString_2>>(&gvv)) {
 						if (line_geov->length() == 0) {
-							std::cout << fmt::format("Empty line geometry contatiner at GeoVector corresponding to output vector with ID: {}", out_view_kv.first) << std::endl;
+							std::cout << fmt::format("Empty line geometry contatiner at GeoVector corresponding to output vector with ID: {}", out_view_kv->first) << std::endl;
 							std::cout << "Matbe try to use a different grid index to initialize output datasets" << std::endl;
 							continue;
 						}
-						c_layer_def = LayerDef::from_geometry_wa(line_geov->geometries_container[0]);
+						c_layer_def = LayerDef::from_geometry_wa(line_geov->geometries_container[valid_geometries_kv->second.idx]);
 					}
 					else if (const GeoVector<Boost_Point_2>* point_geov = boost::get<GeoVector<Boost_Point_2>>(&gvv)) {
 						if (point_geov->length() == 0) {
-							std::cout << fmt::format("Empty point geometry contatiner at GeoVector corresponding to output vector with ID: {}", out_view_kv.first) << std::endl;
+							std::cout << fmt::format("Empty point geometry contatiner at GeoVector corresponding to output vector with ID: {}", out_view_kv->first) << std::endl;
 							std::cout << "Matbe try to use a different grid index to initialize output datasets" << std::endl;
 							continue;
 						}
-						c_layer_def = LayerDef::from_geometry_wa(point_geov->geometries_container[0]);
+						c_layer_def = LayerDef::from_geometry_wa(point_geov->geometries_container[valid_geometries_kv->second.idx]);
 					}
 					else
 						throw std::exception("Cannot initialize output vector dataset! Boost variant variable is out the three supported geometry types.");
 					respective_profile.layers_def[""] = c_layer_def;
-					output_vector_datasets[out_view_kv.first] = WPVectorDataset(std::get<0>(output_vector_defmaps[out_view_kv.first]), respective_profile, std::get<2>(output_vector_defmaps[out_view_kv.first]));
+					output_vector_datasets[out_view_kv->first] = WPVectorDataset(std::get<0>(output_vector_defmaps[out_view_kv->first]), respective_profile, std::get<2>(output_vector_defmaps[out_view_kv->first]));
 				}
 			}
 
