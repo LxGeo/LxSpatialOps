@@ -124,8 +124,8 @@ namespace LxGeo
 				ExtentsCombinationStrategy ecs = ExtentsCombinationStrategy::ext_intersection, WriteMode wm = WriteMode::create, std::string dataset_id = "") {
 				dataset_id = (dataset_id.empty()) ? dataset_path : dataset_id;
 
-				bool c_error_bool = (wm != WriteMode::create || !boost::filesystem::exists(dataset_path));
-				if (!c_error_bool)
+				bool c_error_bool = (wm == WriteMode::create && boost::filesystem::exists(dataset_path));
+				if (c_error_bool)
 					throw std::runtime_error("File already exists. Cannot add output vector having id {} with write mode as create!");
 
 				std::list<IO_DATA::VProfile> v_profiles;
