@@ -16,6 +16,11 @@ namespace LxGeo
 
 		public:
 			std::pair<double, double> xy_constants;
+			std::string height_column_name = "HEIGHT";
+			std::string confidence_column_name = "CONF";
+			std::string success_column_name = "SUCCESS";
+			std::string method_column_name = "METHOD";
+			
 			
 		public:
 			MultiStageAlignment(
@@ -67,77 +72,134 @@ namespace LxGeo
 				GeoImage<cv::Mat> proximity_gimg = proximity_raster(binary_contour, 1);
 				return proximity_gimg;
 			}
-
-			void assign_heights(GeoVector<Boost_Polygon_2>& in_g_vector, GeoImage<cv::Mat>& height_raster, const std::string& height_column_name = "height") {
+			
+			template <std::ranges::input_range Range>
+			void assign_heights(Range& in_g_vector, const GeoImage<cv::Mat>& height_raster) {
 				float null_value = (height_raster.no_data.has_value()) ? height_raster.no_data.value() : FLT_MAX; //value_or
 				RasterPixelsStitcher rps = RasterPixelsStitcher(height_raster);
-				for (auto& gwa : in_g_vector.geometries_container) {
+				for (auto& gwa : in_g_vector) {
 					auto stitched_pixels = rps.readPolygonPixels<float>(gwa.get_definition(), RasterPixelsStitcherStartegy::filled_polygon);
 					auto stats = numcpp::DetailedStats<float>(stitched_pixels, null_value, 0.0);
 					if (!stats.empty()) {
-						gwa.set_double_attribute("null_r", double(stats.count_null()) / (stats.count()+ stats.count_null()));
 						gwa.set_double_attribute(height_column_name, stats.percentile(90));
-						gwa.set_int_attribute("H_LABEL", 1);
+						double null_percentage =  double(stats.count_null()) / (stats.count()+ stats.count_null());
+						gwa.set_int_attribute(success_column_name, (null_percentage>0.5)?0:1 );
+
 					}
 					else {
-						gwa.set_double_attribute("null_r", 0);
-						gwa.set_double_attribute(height_column_name, DBL_MAX);
-						gwa.set_int_attribute("H_LABEL", 0);
+						gwa.set_double_attribute(height_column_name, 0);
+						gwa.set_int_attribute(success_column_name, 0);
 					}
 				}
 			}
 
-			void assign_confidence(GeoVector<Boost_Polygon_2>& in_g_vector, GeoImage<cv::Mat>& proximity_raster, const std::string& confidence_column_name = "confidence") {
+			template <std::ranges::input_range Range>
+			void assign_confidence(Range& in_g_vector, const GeoImage<cv::Mat>& proximity_raster, const std::pair<double,double>& xy_constants) {
 				float null_value = (proximity_raster.no_data.has_value()) ? proximity_raster.no_data.value() : FLT_MAX; //value_or
 				RasterPixelsStitcher rps = RasterPixelsStitcher(proximity_raster);
-				for (auto& gwa : in_g_vector.geometries_container) {
-					auto stitched_pixels = rps.readPolygonPixels<float>(gwa.get_definition(), RasterPixelsStitcherStartegy::contours);
+				for (auto& gwa : in_g_vector) {
+					int H_LABEL = gwa.get_int_attribute(success_column_name);
+					assert(H_LABEL == 1);
+					double h = gwa.get_double_attribute(height_column_name);
+					auto translate_matrix = bg::strategy::transform::translate_transformer<double, 2, 2>(h * xy_constants.first, h * xy_constants.second);
+					auto translated_geometry = translate_geometry(gwa.get_definition(), translate_matrix);
+
+					auto stitched_pixels = rps.readPolygonPixels<float>(translated_geometry, RasterPixelsStitcherStartegy::contours);
 					auto stats = numcpp::DetailedStats<float>(stitched_pixels, null_value, 0.0);
 					if (!stats.empty()) {
-						gwa.set_double_attribute(confidence_column_name, stats.sum()/stats.count());
-						gwa.set_int_attribute("C_LABEL", 1);
+						gwa.set_double_attribute(confidence_column_name, stats.mean());						
+						gwa.set_int_attribute(success_column_name, (stats.mean() > 5) ? 0 : 1);
 					}
 					else {
 						gwa.set_double_attribute(confidence_column_name, DBL_MAX);
-						gwa.set_int_attribute("C_LABEL", 0);
+						gwa.set_int_attribute(success_column_name, 0);
 					}
 				}
 			}
 
-			void roof2roof(GeoVector<Boost_Polygon_2>& in_g_vector, const std::pair<double, double>& xy_constants, const std::string& height_column_name = "height") {
-				for (auto& gwa : in_g_vector.geometries_container) {
-					int H_LABEL = gwa.get_int_attribute("H_LABEL");
-					if (H_LABEL == 0)
-						continue;
-					double h = gwa.get_double_attribute(height_column_name);
-					auto translate_matrix = bg::strategy::transform::translate_transformer<double, 2, 2>(h * xy_constants.first, h *xy_constants.second);
-					gwa.set_definition(translate_geometry(gwa.get_definition(), translate_matrix));
-				}
-			};
+			/*
+			Expecting a polygon geovector & respective dsm & target proximity map to use for confidence assignment && xy_constants for heihgt-disparity conversion
+			Updates respective geovector by adding height_column_name, confidence_column_name, success_column_name to each geometry
+			*/
+			template <std::ranges::input_range Range>
+			void height_alignment_op(Range& in_geovector, const GeoImage<cv::Mat>& respective_dsm, const GeoImage<cv::Mat>& target_proximity_map,
+				const std::pair<double, double>& xy_constants) {
+				
+				assign_heights(in_geovector, respective_dsm);
+				
+				auto success_filter_predicate = [this](const Geometries_with_attributes<Boost_Polygon_2>& feature) {
+					return feature.get_int_attribute(success_column_name) == 1;
+				};
 
+				auto polygon_successful_height_assigned = std::views::filter(in_geovector, success_filter_predicate);
+				assign_confidence(polygon_successful_height_assigned, target_proximity_map, xy_constants);
+
+				for(auto& gwa : std::views::filter(in_geovector, success_filter_predicate))
+					gwa.set_string_attribute(method_column_name, "1");
+
+			}
+
+			template <std::ranges::input_range Range>
+			void template_matching_alignment_op(Range& in_g_vector, const GeoImage<cv::Mat>& template_ortho, const GeoImage<cv::Mat>& search_ortho) {
+
+			}
+
+			template <std::ranges::input_range Range>
+			void preset_geovector(Range& in_g_vector) {
+				for (auto& gwa : in_g_vector) {
+					gwa.set_string_attribute(method_column_name, "");
+					gwa.set_double_attribute(height_column_name, -1);
+					gwa.set_double_attribute(confidence_column_name, -1);
+					gwa.set_int_attribute(success_column_name, -1);
+				}
+			}
+
+			/**
+			The opperation consists of estimating disparity (height) to every polygon using different methods in order:
+			1) SGBM disparity 2) Template matching disparity
+			Where in each method:
+				a) Height is assigned is assigned for every polygon alongside a confidence value of the assignment
+				-In the case of SGBM: a low confidence value will be assigned to geometries with unreliable statistcs for example (high variance of values) or (High null value percentage)
+				-In the case of template matching a low confidence value will be assigned to geometries with low correlation of patches.
+				b) Geometries will be filtered using a the height assignemnt confidence, then another confidence attribute will be assigned based on geometry superpostion after alignment on the probability map.
+				-This will be the same for both.
+				c) Geometries will be filtered based on the last computed confidence where good confidence geometries will be ignored in the next steps.
+
+			We end up with initial no moved geometries with the following fields:
+			METHOD: index of the method used to succefully align a geometry
+			HEIGHT: The value of height using the respective method
+			CONF: Confidence value of alignment using the respective method
+
+			Finally a translation will be applied using the HEIGHT attribute.
+			
+			*/
 			ViewPair op(ViewPair& in_view_pair) override {
 				ViewPair out_view;
-
-				GeoVector<Boost_Polygon_2>& polygons1 = boost::get<GeoVector<Boost_Polygon_2>>(in_view_pair.vector_views["vector_1"]);
-				GeoVector<Boost_Polygon_2>& polygons2 = boost::get<GeoVector<Boost_Polygon_2>>(in_view_pair.vector_views["vector_2"]);
-
-				assign_heights(polygons1, in_view_pair.raster_views["dsm_1"], "height");
-				assign_heights(polygons2, in_view_pair.raster_views["dsm_2"], "height");
-
-				roof2roof(polygons1, { -xy_constants.first, -xy_constants.second }, "height");
-				roof2roof(polygons2, xy_constants, "height");
 
 				GeoImage<cv::Mat> contour_proximity_1 = proba2proximity(in_view_pair.raster_views["proba_1"]);
 				GeoImage<cv::Mat> contour_proximity_2 = proba2proximity(in_view_pair.raster_views["proba_2"]);
 
-				assign_confidence(polygons1, contour_proximity_2, "confidence");
-				assign_confidence(polygons2, contour_proximity_1, "confidence");
+				GeoVector<Boost_Polygon_2>& polygons1 = boost::get<GeoVector<Boost_Polygon_2>>(in_view_pair.vector_views["vector_1"]);
+				GeoVector<Boost_Polygon_2>& polygons2 = boost::get<GeoVector<Boost_Polygon_2>>(in_view_pair.vector_views["vector_2"]);
+				preset_geovector(polygons1); preset_geovector(polygons2);
 
-				out_view.valid_geometries_indices["al_v1"].idx = 0;
-				out_view.valid_geometries_indices["al_v2"].idx = 0;
+				height_alignment_op(polygons1, in_view_pair.raster_views["dsm_1"], contour_proximity_2, { -xy_constants.first, -xy_constants.second });
+				height_alignment_op(polygons2, in_view_pair.raster_views["dsm_2"], contour_proximity_1, xy_constants);
+
+				auto failure_filter_predicate = [this](const Geometries_with_attributes<Boost_Polygon_2>& feature) {
+					return feature.get_double_attribute(success_column_name) == 0;
+				};
+
+				auto polygon1_remaining = std::views::filter(polygons1, failure_filter_predicate);
+				auto polygon2_remaining = std::views::filter(polygons1, failure_filter_predicate);
+
+				template_matching_alignment_op(polygon1_remaining, in_view_pair.raster_views["ortho_1"], in_view_pair.raster_views["ortho_2"]);
+				template_matching_alignment_op(polygon2_remaining, in_view_pair.raster_views["ortho_2"], in_view_pair.raster_views["ortho_1"]);
+				
+				out_view.valid_geometries_indices["al_v1"].idx = polygons1.geometries_container.size()/2;
+				out_view.valid_geometries_indices["al_v2"].idx = polygons2.geometries_container.size() / 2;
 				out_view.vector_views["al_v1"] = std::move(polygons1);
 				out_view.vector_views["al_v2"] = std::move(polygons2);
-
 				return out_view;
 			}
 
