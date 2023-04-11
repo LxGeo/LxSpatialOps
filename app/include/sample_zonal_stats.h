@@ -7,7 +7,7 @@
 
 namespace LxGeo
 {
-	namespace LxRasterOps
+	namespace LxSpatialOps
 	{
 
 		class ZonalStatsPolygon : public BaseOperation {

@@ -2,12 +2,12 @@
 
 namespace LxGeo
 {
-	namespace LxRasterOps
+	namespace LxSpatialOps
 	{
 		Parameters::Parameters(int argc, char* argv[])
 		{
 			init();
-			CLI::App app{ "LxRasterOps examples!" };
+			CLI::App app{ "LxSpatialOps examples!" };
 			app.add_option("--imd1", imd1_path, "Metadata file respective to template image (template shapefile)!")->check(CLI::ExistingFile);
 
 			try {

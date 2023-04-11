@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 
 
-project(lxRasterOps VERSION 0.1.0)
+project(LxSpatialOps VERSION 0.1.0)
 
 #set(FORCE_STATIC 1)
 if(DEFINED FORCE_STATIC )

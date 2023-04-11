@@ -5,7 +5,7 @@
 
 namespace LxGeo
 {
-	namespace LxRasterOps
+	namespace LxSpatialOps
 	{
 
 		class StereoMatching : public BaseOperation {

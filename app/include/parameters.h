@@ -6,7 +6,7 @@
 
 namespace LxGeo
 {
-	namespace LxRasterOps
+	namespace LxSpatialOps
 	{
 		class Parameters: public baseParameters
 		{

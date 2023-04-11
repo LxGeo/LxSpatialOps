@@ -11,7 +11,7 @@
 
 namespace LxGeo
 {
-	namespace LxRasterOps 
+	namespace LxSpatialOps 
 	{
 
 		using namespace IO_DATA;

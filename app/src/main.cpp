@@ -12,7 +12,7 @@
 #include "probability_to_proximity.h"
 #include "multistage_alignement.h"
 
-using namespace LxGeo::LxRasterOps;
+using namespace LxGeo::LxSpatialOps;
 using namespace LxGeo::GeometryFactoryShared;
 
 int main(int argc, char* argv[])

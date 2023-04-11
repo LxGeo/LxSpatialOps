@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(lxRasterOps)
+project(LxSpatialOps)
 
 
 set(EXECUTABLE_OUTPUT_PATH ../../out/bin/${CMAKE_BUILD_TYPE})
@@ -62,13 +62,26 @@ include_directories(
 include_directories(include)
 include_directories("$ENV{LX_GEO_REPOS_ROOT}/LxGeoCppLibs/libs/shared/include/")
 include_directories("$ENV{LX_GEO_REPOS_ROOT}/LxGeoCppLibs/libs/shared/include/io/")
-#include_directories("$ENV{LX_GEO_REPOS_ROOT}/LxGeoCppLibs/libs/IO_DATA/include/")
 
+###############
 
-file(GLOB_RECURSE SOURCE include/* src/*)
-add_executable(${PROJECT_NAME} ${SOURCE})
+file(GLOB_RECURSE 
+	LX_SPATIALOPS_SRC_FILES 
+	src/* 
+	include/*)
+
+if(DEFINED FORCE_STATIC )
+    add_library(${PROJECT_NAME} 
+	STATIC
+	${LX_SPATIALOPS_SRC_FILES})
+else()
+    add_library(${PROJECT_NAME} 
+	SHARED
+	${LX_SPATIALOPS_SRC_FILES})
+endif()
+
 add_dependencies(${PROJECT_NAME} LxGeoFactoryShared)
-#add_dependencies(${PROJECT_NAME} IO_DATA)
+
 
 set(USED_BOOST_LIBS ${Boost_LOG_SETUP_LIBRARY} ${Boost_LOG_LIBRARY} 
   ${Boost_FILESYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY}  )
@@ -78,9 +91,6 @@ target_link_libraries(${PROJECT_NAME} ${GDAL_LIBRARIES} ${OpenCV_LIBS} fmt::fmt 
 
 target_link_libraries(${PROJECT_NAME} debug ../out/Debug/LxGeoFactoryShared)
 target_link_libraries(${PROJECT_NAME} optimized ../out/Release/LxGeoFactoryShared)
-
-#target_link_libraries(${PROJECT_NAME} debug ../out/Debug/IO_DATA)
-#target_link_libraries(${PROJECT_NAME} optimized ../out/Release/IO_DATA)
 
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_CXX_FLAGS})
 

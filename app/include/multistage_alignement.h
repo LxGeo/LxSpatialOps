@@ -9,7 +9,7 @@
 
 namespace LxGeo
 {
-	namespace LxRasterOps
+	namespace LxSpatialOps
 	{
 
 		class MultiStageAlignment : public BaseOperation {

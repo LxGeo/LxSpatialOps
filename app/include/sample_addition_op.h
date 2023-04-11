@@ -5,7 +5,7 @@
 
 namespace LxGeo
 {
-	namespace LxRasterOps
+	namespace LxSpatialOps
 	{
 
 		class MapAddition : public BaseOperation {
