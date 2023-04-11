@@ -27,4 +27,4 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory("$ENV{LX_GEO_REPOS_ROOT}/LxGeoCppLibs/libs/shared" LxGeoFactoryShared)
-add_subdirectory(app)
+add_subdirectory(lib)
