@@ -4,6 +4,7 @@
 #include "lightweight\raster_profile.h"
 #include "lightweight\geoimage.h"
 #include "spatial_datasets/patchified_w_raster_dataset.h"
+#include "exports_ops.h"
 
 #include "lightweight\geovector.h"
 #include "lightweight\vector_profile.h"
@@ -66,7 +67,7 @@ namespace LxGeo
 		/**
 		Base class for spatial dataset operation. Defines requierement for operations.
 		*/
-		class BaseOperation{
+		class LX_SPATIAL_OPS_API BaseOperation{
 		
 		public:
 			void add_raster_input_dataset(std::string dataset_path, std::string dataset_id = "") {
