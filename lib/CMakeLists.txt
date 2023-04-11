@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 project(LxSpatialOps)
 
-
-set(EXECUTABLE_OUTPUT_PATH ../../out/bin/${CMAKE_BUILD_TYPE})
-
 set(OPTIM_INCLUDE_DIR "$ENV{OPTIM_INCLUDE_DIR}")
 if(NOT OPTIM_INCLUDE_DIR)
     message(FATAL_ERROR "Please point the environment variable OPTIM_INCLUDE_DIR to the include directory of your optim installation.")
@@ -70,6 +67,7 @@ file(GLOB_RECURSE
 	src/* 
 	include/*)
 
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 if(DEFINED FORCE_STATIC )
     add_library(${PROJECT_NAME} 
 	STATIC
@@ -80,6 +78,7 @@ else()
 	${LX_SPATIALOPS_SRC_FILES})
 endif()
 
+
 add_dependencies(${PROJECT_NAME} LxGeoFactoryShared)
 
 
@@ -89,8 +88,7 @@ target_link_libraries(${PROJECT_NAME} ${USED_BOOST_LIBS})
 
 target_link_libraries(${PROJECT_NAME} ${GDAL_LIBRARIES} ${OpenCV_LIBS} fmt::fmt fmt::fmt-header-only )
 
-target_link_libraries(${PROJECT_NAME} debug ../out/Debug/LxGeoFactoryShared)
-target_link_libraries(${PROJECT_NAME} optimized ../out/Release/LxGeoFactoryShared)
+target_link_libraries(${PROJECT_NAME} LxGeoFactoryShared)
 
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_CXX_FLAGS})
 
