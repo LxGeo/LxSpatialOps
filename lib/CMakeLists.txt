@@ -89,6 +89,8 @@ target_link_libraries(${PROJECT_NAME} ${USED_BOOST_LIBS})
 target_link_libraries(${PROJECT_NAME} ${GDAL_LIBRARIES} ${OpenCV_LIBS} fmt::fmt fmt::fmt-header-only )
 
 target_link_libraries(${PROJECT_NAME} LxGeoFactoryShared)
+set_target_properties(LxGeoFactoryShared PROPERTIES
+                      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_CXX_FLAGS})
 

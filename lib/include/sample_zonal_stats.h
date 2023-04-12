@@ -34,7 +34,7 @@ namespace LxGeo
 
 				ViewPair out_view;
 
-				out_view.vector_views["out_polys"] = boost::get<GeoVector<Boost_Polygon_2>>(in_view_pair.vector_views["polys"]);
+				out_view.vector_views.emplace("out_polys", std::move(boost::get<GeoVector<Boost_Polygon_2>>(in_view_pair.vector_views["polys"])));
 				GeoVector<Boost_Polygon_2>& gvec = boost::get<GeoVector<Boost_Polygon_2>>(out_view.vector_views["out_polys"]);
 
 				RasterPixelsStitcher rps = RasterPixelsStitcher(in_view_pair.raster_views["ref_raster"]);

@@ -273,7 +273,7 @@ namespace LxGeo
 				for (const auto& c_input_raster_kv : input_raster_defmaps) {
 					auto c_raster_id = c_input_raster_kv.first;
 					GeoImage<cv::Mat> c_geoimage = GeoImage<cv::Mat>::from_file(c_input_raster_kv.second.first, in_view_box);
-					in_view_pair.raster_views[c_raster_id] = c_geoimage;
+					in_view_pair.raster_views[c_raster_id] = std::move(c_geoimage);
 				}
 				// Read vector inputs
 				for (const auto& c_input_vector_kv : input_vector_defmaps) {
@@ -281,15 +281,15 @@ namespace LxGeo
 					auto& first_layer = *c_input_vector_kv.second.second.layers_def.begin();
 					if (first_layer.second.wkb_type == wkbPoint) {
 						GeoVector<Boost_Point_2> c_geovector = GeoVector<Boost_Point_2>::from_file<Boost_Box_2>(c_input_vector_kv.second.first, first_layer.first, in_view_box);
-						in_view_pair.vector_views[c_vector_id] = c_geovector;
+						in_view_pair.vector_views.emplace(c_vector_id, std::move(c_geovector));
 					}
 					if (first_layer.second.wkb_type == wkbLineString) {
 						GeoVector<Boost_LineString_2> c_geovector = GeoVector<Boost_LineString_2>::from_file<Boost_Box_2>(c_input_vector_kv.second.first, first_layer.first, in_view_box);
-						in_view_pair.vector_views[c_vector_id] = c_geovector;
+						in_view_pair.vector_views.emplace(c_vector_id, std::move(c_geovector));
 					}
 					if (first_layer.second.wkb_type == wkbPolygon) {
 						GeoVector<Boost_Polygon_2> c_geovector = GeoVector<Boost_Polygon_2>::from_file<Boost_Box_2>(c_input_vector_kv.second.first, first_layer.first, in_view_box);
-						in_view_pair.vector_views[c_vector_id] = c_geovector;
+						in_view_pair.vector_views.emplace(c_vector_id, std::move(c_geovector));
 					}
 					
 				}

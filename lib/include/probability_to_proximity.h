@@ -49,7 +49,7 @@ namespace LxGeo
 				};
 				VirtualGeoImage<cv::Mat> binary_contour = VirtualGeoImage<cv::Mat>(proba, binarizer_fn);
 				GeoImage<cv::Mat> proximity_gimg = proximity_raster(binary_contour, 1, {2});
-				out_view.raster_views["output_proximity"] = proximity_gimg;
+				out_view.raster_views["output_proximity"] = std::move(proximity_gimg);
 				return out_view;
 			}
 
