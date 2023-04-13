@@ -185,7 +185,14 @@ namespace LxGeo
 					output_area = union_geoms.front();
 				}
 
+				std::function<void(Boost_Box_2&)> crop_to_extents = [&output_area](Boost_Box_2& b) {
+					Boost_Box_2 output_area_b = bg::return_envelope<Boost_Box_2, Boost_Polygon_2>(output_area);
+					Boost_Box_2 temp_out_box = combine_extents({ b, output_area_b }, ExtentsCombinationStrategy::ext_intersection);
+					b = temp_out_box;
+				};
+
 				out_cpd = ContinuousPatchifiedDataset({ spatial_patch_size, 0.0, 0.0, output_area });
+				out_cpd.transform_inplace(crop_to_extents);
 				if (out_cpd.length() < 1)
 					throw std::exception("Misgenerated patch grids! Make sure that spatial patch size corresponds well to extents!");
 				if (ods == OperationDiveStrategy::same) {
@@ -193,7 +200,14 @@ namespace LxGeo
 				}
 				else if (ods == OperationDiveStrategy::zoom) {
 					assert(spatial_buffer > 0.0, "OperationDiveStrategy is zoom! spatial buffer should be heigher than zero!");
-					in_cpd = ContinuousPatchifiedDataset({ spatial_patch_size + spatial_buffer, spatial_buffer, spatial_buffer / 2, output_area });
+					in_cpd = ContinuousPatchifiedDataset(out_cpd);
+					in_cpd.transform_inplace([&spatial_buffer](Boost_Box_2& b) {
+						b.min_corner().set<0>(b.min_corner().get<0>() - spatial_buffer);
+						b.min_corner().set<1>(b.min_corner().get<1>() - spatial_buffer);
+						b.max_corner().set<0>(b.max_corner().get<0>() + spatial_buffer);
+						b.max_corner().set<1>(b.max_corner().get<1>() + spatial_buffer);
+						});
+					//in_cpd = ContinuousPatchifiedDataset({ spatial_patch_size + spatial_buffer, spatial_buffer, spatial_buffer / 2, output_area });
 				}
 
 				assert(out_cpd.length() == in_cpd.length(), "Error at generating in & out patch grids!");
