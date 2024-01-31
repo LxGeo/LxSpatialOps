@@ -9,6 +9,7 @@
 #include "contours_stitching_evaluation.h"
 #include "sample_zonal_stats.h"
 #include "probability_to_proximity.h"
+#include "disparity_remap.h"
 
 using namespace LxGeo::LxSpatialOps;
 using namespace LxGeo::GeometryFactoryShared;
@@ -21,7 +22,11 @@ int main(int argc, char* argv[])
 	//std::string ref_raster_map = "C:/DATA_SANDBOX/Alignment_Project/sgbm_pipeline/perfect_gt_brazil/pseudo_dsm_inv.tif";
 	//std::string in_polygons = "C:/DATA_SANDBOX/Alignment_Project/PerfectGT/Brazil_Vila_Velha_A_Neo/preds/build_poly.shp";
 	//std::string out_polygons = "C:/DATA_SANDBOX/Alignment_Project/PerfectGT/Brazil_Vila_Velha_A_Neo/preds/build_poly.shp";
-	//ZonalStatsPolygon dd = ZonalStatsPolygon()
+	
+	std::string in_disparity_path = "C:/DATA_SANDBOX/Alignment_Project/alignment_results/epipolarPipeline/Brazil_Vila_Velha_gt_v2tov1/disp.tif";
+	std::string out_disparity_path = "C:/DATA_SANDBOX/Alignment_Project/alignment_results/epipolarPipeline/Brazil_Vila_Velha_gt_v2tov1/remapped_disp.tif";
+	DisparityRemapper dd = DisparityRemapper(in_disparity_path, out_disparity_path);
+	dd.run_sequential();
 
 	clock_t t_end = clock();
 	std::cout << "** Elapsed time : " << double(t_end - t_begin) / CLOCKS_PER_SEC << " s." << std::endl;

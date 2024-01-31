@@ -67,7 +67,7 @@ namespace LxGeo
 		/**
 		Base class for spatial dataset operation. Defines requierement for operations.
 		*/
-		class LX_SPATIAL_OPS_API BaseOperation{
+		class BaseOperation{
 		
 		public:
 			void add_raster_input_dataset(std::string dataset_path, std::string dataset_id = "") {
@@ -181,7 +181,12 @@ namespace LxGeo
 					std::deque<Boost_Polygon_2> union_geoms;
 					bg::correct(output_area); bg::correct(c_extent);
 					bg::union_(output_area, c_extent, union_geoms);
-					assert(union_geoms.size() == 1, "Union of extents generated multipart polygons!");
+					if (union_geoms.size() != 1) {
+						std::cout << "Union of extents generated multipart polygons!" << std::endl;
+						for (auto geom : union_geoms)
+							std::cout << std::setprecision(20) << bg::wkt(geom) << std::endl;
+						exit(1);
+					}
 					output_area = union_geoms.front();
 				}
 

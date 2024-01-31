@@ -70,11 +70,11 @@ file(GLOB_RECURSE
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 if(DEFINED FORCE_STATIC )
     add_library(${PROJECT_NAME} 
-	STATIC
+	
 	${LX_SPATIALOPS_SRC_FILES})
 else()
     add_library(${PROJECT_NAME} 
-	SHARED
+	
 	${LX_SPATIALOPS_SRC_FILES})
 endif()
 
@@ -93,4 +93,7 @@ set_target_properties(LxGeoFactoryShared PROPERTIES
                       RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_CXX_FLAGS})
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+                      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
